@@ -1,0 +1,17 @@
+# Environment variables
+.env
+
+# Large data files
+data/chroma_db/
+*.sqlite3
+*.bin
+*.pkl
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# OS files
+.DS_Store
+Thumbs.db

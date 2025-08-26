@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: movie-recommender-app
+  labels:
+    app: movie-recommender
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: movie-recommender
+  template:
+    metadata:
+      labels:
+        app: movie-recommender
+    spec:
+      containers:
+      - name: movie-recommender-container
+        image: movie-recommender:latest  # Use Docker Hub image
+        imagePullPolicy: IfNotPresent   # Always pull from registry
+        ports:
+          - containerPort: 8501
+        envFrom:
+          - secretRef:
+              name: movie-recommender-secrets
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "250m"
+          limits:
+            memory: "2Gi"
+            cpu: "500m" 
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: movie-recommender-service
+spec:
+  type: LoadBalancer
+  selector:
+    app: movie-recommender
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8501
