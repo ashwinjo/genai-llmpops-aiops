@@ -38,19 +38,20 @@ echo "✅ Repository $ECR_REPOSITORY_NAME found"
 echo "🔐 Getting ECR login token..."
 aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
 
-# Step 4: Build Docker image
-echo "🏗️ Building Docker image..."
-cd 03-ai-movie-recommender
-docker build -t $IMAGE_NAME:$IMAGE_TAG .
+# Step 4: Set up Docker Buildx for multi-architecture builds
+echo "🔧 Setting up Docker Buildx..."
+docker buildx create --use --name multi-arch-builder || true
 
-# Step 5: Tag image for ECR
+# Step 5: Build and push multi-architecture image
+echo "🏗️ Building and pushing multi-architecture image..."
 ECR_URI="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY_NAME"
-echo "🏷️ Tagging image for ECR: $ECR_URI"
-docker tag $IMAGE_NAME:$IMAGE_TAG $ECR_URI:$IMAGE_TAG
 
-# Step 6: Push image to ECR
-echo "📤 Pushing image to ECR..."
-docker push $ECR_URI:$IMAGE_TAG
+docker buildx build \
+    --platform linux/amd64,linux/arm64 \
+    -t $ECR_URI:$IMAGE_TAG \
+    -t $ECR_URI:latest \
+    --push \
+    .
 
 # Step 7: Verify the push
 echo "✅ Verifying image in ECR..."

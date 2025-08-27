@@ -1,11 +1,11 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: movie-recommender-app
+  name: movie-recommender
   labels:
     app: movie-recommender
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app: movie-recommender
@@ -13,34 +13,53 @@ spec:
     metadata:
       labels:
         app: movie-recommender
+      annotations:
+        iam.amazonaws.com/role: arn:aws:iam::550263319257:role/eks-node-group-role
     spec:
+      serviceAccountName: movie-recommender-sa
       containers:
-      - name: movie-recommender-container
-        image: movie-recommender:latest  # Use Docker Hub image
-        imagePullPolicy: IfNotPresent   # Always pull from registry
+      - name: movie-recommender
+        image: 550263319257.dkr.ecr.us-east-2.amazonaws.com/movie-recommender:latest  # ECR in us-east-2
         ports:
-          - containerPort: 8501
-        envFrom:
-          - secretRef:
+        - containerPort: 8501
+        env:
+        - name: STREAMLIT_SERVER_PORT
+          value: "8501"
+        - name: STREAMLIT_SERVER_ADDRESS
+          value: "0.0.0.0"
+        - name: HF_TOKEN
+          valueFrom:
+            secretKeyRef:
               name: movie-recommender-secrets
+              key: HF_TOKEN
+        - name: GROQ_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: movie-recommender-secrets
+              key: GROQ_API_KEY
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: movie-recommender-secrets
+              key: OPENAI_API_KEY
         resources:
           requests:
-            memory: "1Gi"
+            memory: "512Mi"
             cpu: "250m"
           limits:
-            memory: "2Gi"
-            cpu: "500m" 
-
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: movie-recommender-service
-spec:
-  type: LoadBalancer
-  selector:
-    app: movie-recommender
-  ports:
-    - protocol: TCP
-      port: 80
-      targetPort: 8501
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /_stcore/health
+            port: 8501
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /_stcore/health
+            port: 8501
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      imagePullSecrets:
+      - name: ecr-secret
