@@ -6,9 +6,9 @@
 set -e
 
 # Configuration
-AWS_REGION="us-west-2"  # Change to your preferred region
-AWS_ACCOUNT_ID=""       # Will be auto-detected
-ECR_REPOSITORY_NAME="movie-recommender"
+AWS_REGION="us-east-2"  # Your AWS region
+AWS_ACCOUNT_ID="550263319257"  # Your AWS Account ID
+ECR_REPOSITORY_NAME="movie-recommender"  # Your existing repository name
 IMAGE_TAG="latest"
 IMAGE_NAME="movie-recommender"
 
@@ -22,20 +22,17 @@ if ! aws sts get-caller-identity &> /dev/null; then
     exit 1
 fi
 
-# Get AWS Account ID
-AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+# Verify AWS Account ID
 echo "✅ AWS Account ID: $AWS_ACCOUNT_ID"
 
-# Step 2: Create ECR repository if it doesn't exist
-echo "📦 Creating ECR repository..."
-aws ecr describe-repositories --repository-names $ECR_REPOSITORY_NAME --region $AWS_REGION &> /dev/null || {
-    echo "Creating repository $ECR_REPOSITORY_NAME..."
-    aws ecr create-repository \
-        --repository-name $ECR_REPOSITORY_NAME \
-        --region $AWS_REGION \
-        --image-scanning-configuration scanOnPush=true \
-        --encryption-configuration encryptionType=AES256
-}
+# Step 2: Verify ECR repository exists
+echo "📦 Verifying ECR repository exists..."
+if ! aws ecr describe-repositories --repository-names $ECR_REPOSITORY_NAME --region $AWS_REGION &> /dev/null; then
+    echo "❌ Repository $ECR_REPOSITORY_NAME not found in region $AWS_REGION"
+    echo "Please create the repository first or update the ECR_REPOSITORY_NAME variable"
+    exit 1
+fi
+echo "✅ Repository $ECR_REPOSITORY_NAME found"
 
 # Step 3: Get ECR login token
 echo "🔐 Getting ECR login token..."
@@ -43,7 +40,7 @@ aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --
 
 # Step 4: Build Docker image
 echo "🏗️ Building Docker image..."
-cd projects/03-ai-movie-recommender
+cd 03-ai-movie-recommender
 docker build -t $IMAGE_NAME:$IMAGE_TAG .
 
 # Step 5: Tag image for ECR
