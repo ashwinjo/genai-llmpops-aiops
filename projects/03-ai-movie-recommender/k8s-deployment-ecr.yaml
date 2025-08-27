@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: movie-recommender-app
+  labels:
+    app: movie-recommender
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: movie-recommender
+  template:
+    metadata:
+      labels:
+        app: movie-recommender
+    spec:
+      containers:
+      - name: movie-recommender-container
+        image: YOUR_AWS_ACCOUNT_ID.dkr.ecr.YOUR_REGION.amazonaws.com/movie-recommender:latest
+        imagePullPolicy: Always
+        ports:
+          - containerPort: 8501
+        envFrom:
+          - secretRef:
+              name: movie-recommender-secrets
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "250m"
+          limits:
+            memory: "2Gi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /_stcore/health
+            port: 8501
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /_stcore/health
+            port: 8501
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+      imagePullSecrets:
+        - name: aws-ecr-secret
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: movie-recommender-service
+  labels:
+    app: movie-recommender
+spec:
+  type: LoadBalancer
+  selector:
+    app: movie-recommender
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8501
+      name: http
